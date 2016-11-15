@@ -105,8 +105,15 @@ func TestTruncate(t *testing.T) {
 
 	assertFollowedLines(t, f, testLines[0])
 
-	// truncate to 0 size
-	if err := file.Truncate(0); err != nil {
+	// get a new fd for truncating, since if we re-use our open one
+	// it will correctly set seek_cur and we don't want to test that
+	file2, err := os.OpenFile(file.Name(), os.O_RDWR, os.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file2.Close()
+
+	if err := file2.Truncate(0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -154,9 +161,16 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	file.Close()
 
-	f, err := New(file.Name(), Config{
-		Reopen: false,
+	// re-open in append mode since most loggers will be doing such
+	file2, err := os.OpenFile(file.Name(), os.O_APPEND|os.O_RDWR, os.ModeAppend)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := New(file2.Name(), Config{
+		Reopen: true,
 		Offset: 0,
 		Whence: io.SeekEnd,
 	})
@@ -164,7 +178,7 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 		t.Fatal(err)
 	}
 
-	return file, f
+	return file2, f
 }
 
 func writeLines(file *os.File, lines []string) error {
