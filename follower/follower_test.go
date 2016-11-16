@@ -81,7 +81,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNoReopen(t *testing.T) {
-	file, f := testPair(t, "test1")
+	file, f := testPair(t, "TestNoReopen")
 	defer file.Close()
 
 	// sleep to make sure we don't write before the follower is ready
@@ -94,26 +94,17 @@ func TestNoReopen(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
-	file, f := testPair(t, "test2")
+	file, f := testPair(t, "TestTruncate")
 	defer file.Close()
 
-	// sleep to make sure we don't write before the follower is ready
-	time.Sleep(100 * time.Millisecond)
 	if err := writeLines(file, testLines[0]); err != nil {
 		t.Fatal(err)
 	}
 
 	assertFollowedLines(t, f, testLines[0])
 
-	// get a new fd for truncating, since if we re-use our open one
-	// it will correctly set seek_cur and we don't want to test that
-	file2, err := os.OpenFile(file.Name(), os.O_RDWR, os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file2.Close()
-
-	if err := file2.Truncate(0); err != nil {
+	// normal copytruncate behavior
+	if err := os.Truncate(file.Name(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,14 +114,34 @@ func TestTruncate(t *testing.T) {
 	}
 
 	assertFollowedLines(t, f, testLines[1])
+
+	if err := os.Truncate(file.Name(), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// imitate the behavior of a log writer with a handle that is
+	// not O_APPEND, and has seeked past the end of the file
+	file2, err := os.OpenFile(file.Name(), os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := file2.Seek(int64(1024*100*100), io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	// write a different set of lines
+	if err := writeLines(file2, testLines[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	assertFollowedLines(t, f, testLines[1])
 }
 
 func TestRenameCreate(t *testing.T) {
-	file, f := testPair(t, "test2")
+	file, f := testPair(t, "TestRenameCreate")
 	defer file.Close()
 
-	// sleep to make sure we don't write before the follower is ready
-	time.Sleep(100 * time.Millisecond)
 	if err := writeLines(file, testLines[0]); err != nil {
 		t.Fatal(err)
 	}
@@ -182,6 +193,9 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 }
 
 func writeLines(file *os.File, lines []string) error {
+	// sleep to make sure we don't write before the follower is ready
+	time.Sleep(100 * time.Millisecond)
+
 	for _, l := range lines {
 		_, err := file.WriteString(l + "\n")
 		if err != nil {
@@ -210,6 +224,10 @@ func assertFollowedLines(t *testing.T, f *Follower, lines []string) {
 			}
 		}
 	}()
+
+	if err := f.Err(); err != nil {
+		t.Fatal(err)
+	}
 
 	wg.Wait()
 }
