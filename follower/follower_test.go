@@ -208,6 +208,7 @@ func TestSymlink(t *testing.T) {
 }
 
 func testFile(t *testing.T, name string) *os.File {
+	// open in append mode since most loggers will be doing such
 	file, err := os.OpenFile(path.Join(tmpDir, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
@@ -224,19 +225,9 @@ func testSymlink(t *testing.T, oldname, newname string) {
 }
 
 func testPair(t *testing.T, filename string) (*os.File, *Follower) {
-	file, err := os.Create(path.Join(tmpDir, filename))
-	if err != nil {
-		t.Fatal(err)
-	}
-	file.Close()
+	file := testFile(t, filename)
 
-	// re-open in append mode since most loggers will be doing such
-	file2, err := os.OpenFile(file.Name(), os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f, err := New(file2.Name(), Config{
+	f, err := New(file.Name(), Config{
 		Reopen: true,
 		Offset: 0,
 		Whence: io.SeekEnd,
@@ -245,7 +236,7 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 		t.Fatal(err)
 	}
 
-	return file2, f
+	return file, f
 }
 
 func writeLines(file *os.File, lines []string) error {
