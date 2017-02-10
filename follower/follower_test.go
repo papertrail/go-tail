@@ -70,6 +70,20 @@ var (
 			"A lonely cab-horse steams and stamps.",
 			"And then the lighting of the lamps.",
 		},
+
+		{
+			"In Xanadu did Kubla Khan",
+			"A stately pleasure-dome decree:",
+			"Where Alph, the sacred river, ran",
+			"Through caverns measureless to man",
+			"   Down to a sunless sea.",
+			"So twice five miles of fertile ground",
+			"With walls and towers were girdled round;",
+			"And there were gardens bright with sinuous rills,",
+			"Where blossomed many an incense-bearing tree;",
+			"And here were forests ancient as the hills,",
+			"Enfolding sunny spots of greenery.",
+		},
 	}
 )
 
@@ -84,8 +98,6 @@ func TestNoReopen(t *testing.T) {
 	file, f := testPair(t, "TestNoReopen")
 	defer file.Close()
 
-	// sleep to make sure we don't write before the follower is ready
-	time.Sleep(100 * time.Millisecond)
 	if err := writeLines(file, testLines[0]); err != nil {
 		t.Fatal(err)
 	}
@@ -121,21 +133,22 @@ func TestTruncate(t *testing.T) {
 
 	// imitate the behavior of a log writer with a handle that is
 	// not O_APPEND, and has seeked past the end of the file
-	file2, err := os.OpenFile(file.Name(), os.O_WRONLY, os.ModePerm)
+	file2, err := os.OpenFile(file.Name(), os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file2.Close()
 
 	if _, err := file2.Seek(int64(1024*100*100), io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
 
 	// write a different set of lines
-	if err := writeLines(file2, testLines[1]); err != nil {
+	if err := writeLines(file2, testLines[2]); err != nil {
 		t.Fatal(err)
 	}
 
-	assertFollowedLines(t, f, testLines[1])
+	assertFollowedLines(t, f, testLines[2])
 }
 
 func TestRenameCreate(t *testing.T) {
@@ -167,20 +180,54 @@ func TestRenameCreate(t *testing.T) {
 	assertFollowedLines(t, f, testLines[1])
 }
 
+func TestSymlink(t *testing.T) {
+	// point symlink to first file
+	testSymlink(t, "TestSymlink1", "TestSymlink")
+
+	file, f := testPair(t, "TestSymlink")
+	defer file.Close()
+
+	if err := writeLines(file, testLines[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	assertFollowedLines(t, f, testLines[0])
+
+	// now switch symlink to second file
+	testSymlink(t, "TestSymlink2", "TestSymlink")
+
+	newFile := testFile(t, "TestSymlink")
+	defer newFile.Close()
+
+	// write a different set of lines
+	if err := writeLines(newFile, testLines[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	assertFollowedLines(t, f, testLines[1])
+}
+
+func testFile(t *testing.T, name string) *os.File {
+	// open in append mode since most loggers will be doing such
+	file, err := os.OpenFile(path.Join(tmpDir, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func testSymlink(t *testing.T, oldname, newname string) {
+	// unlink the target first, as with "ln -f"
+	os.Remove(path.Join(tmpDir, newname))
+	if err := os.Symlink(path.Join(tmpDir, oldname), path.Join(tmpDir, newname)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testPair(t *testing.T, filename string) (*os.File, *Follower) {
-	file, err := os.Create(path.Join(tmpDir, filename))
-	if err != nil {
-		t.Fatal(err)
-	}
-	file.Close()
+	file := testFile(t, filename)
 
-	// re-open in append mode since most loggers will be doing such
-	file2, err := os.OpenFile(file.Name(), os.O_APPEND|os.O_RDWR, os.ModeAppend)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f, err := New(file2.Name(), Config{
+	f, err := New(file.Name(), Config{
 		Reopen: true,
 		Offset: 0,
 		Whence: io.SeekEnd,
@@ -189,7 +236,7 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 		t.Fatal(err)
 	}
 
-	return file2, f
+	return file, f
 }
 
 func writeLines(file *os.File, lines []string) error {
