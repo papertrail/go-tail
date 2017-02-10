@@ -180,6 +180,49 @@ func TestRenameCreate(t *testing.T) {
 	assertFollowedLines(t, f, testLines[1])
 }
 
+func TestSymlink(t *testing.T) {
+	// point symlink to first file
+	testSymlink(t, "TestSymlink1", "TestSymlink")
+
+	file, f := testPair(t, "TestSymlink")
+	defer file.Close()
+
+	if err := writeLines(file, testLines[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	assertFollowedLines(t, f, testLines[0])
+
+	// now switch symlink to second file
+	testSymlink(t, "TestSymlink2", "TestSymlink")
+
+	newFile := testFile(t, "TestSymlink")
+	defer newFile.Close()
+
+	// write a different set of lines
+	if err := writeLines(newFile, testLines[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	assertFollowedLines(t, f, testLines[1])
+}
+
+func testFile(t *testing.T, name string) *os.File {
+	file, err := os.OpenFile(path.Join(tmpDir, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func testSymlink(t *testing.T, oldname, newname string) {
+	// unlink the target first, as with "ln -f"
+	os.Remove(path.Join(tmpDir, newname))
+	if err := os.Symlink(path.Join(tmpDir, oldname), path.Join(tmpDir, newname)); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 	file, err := os.Create(path.Join(tmpDir, filename))
 	if err != nil {
