@@ -84,8 +84,6 @@ func TestNoReopen(t *testing.T) {
 	file, f := testPair(t, "TestNoReopen")
 	defer file.Close()
 
-	// sleep to make sure we don't write before the follower is ready
-	time.Sleep(100 * time.Millisecond)
 	if err := writeLines(file, testLines[0]); err != nil {
 		t.Fatal(err)
 	}
@@ -121,10 +119,11 @@ func TestTruncate(t *testing.T) {
 
 	// imitate the behavior of a log writer with a handle that is
 	// not O_APPEND, and has seeked past the end of the file
-	file2, err := os.OpenFile(file.Name(), os.O_WRONLY, os.ModePerm)
+	file2, err := os.OpenFile(file.Name(), os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file2.Close()
 
 	if _, err := file2.Seek(int64(1024*100*100), io.SeekStart); err != nil {
 		t.Fatal(err)
@@ -175,7 +174,7 @@ func testPair(t *testing.T, filename string) (*os.File, *Follower) {
 	file.Close()
 
 	// re-open in append mode since most loggers will be doing such
-	file2, err := os.OpenFile(file.Name(), os.O_APPEND|os.O_RDWR, os.ModeAppend)
+	file2, err := os.OpenFile(file.Name(), os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
