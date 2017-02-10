@@ -70,6 +70,20 @@ var (
 			"A lonely cab-horse steams and stamps.",
 			"And then the lighting of the lamps.",
 		},
+
+		{
+			"In Xanadu did Kubla Khan",
+			"A stately pleasure-dome decree:",
+			"Where Alph, the sacred river, ran",
+			"Through caverns measureless to man",
+			"   Down to a sunless sea.",
+			"So twice five miles of fertile ground",
+			"With walls and towers were girdled round;",
+			"And there were gardens bright with sinuous rills,",
+			"Where blossomed many an incense-bearing tree;",
+			"And here were forests ancient as the hills,",
+			"Enfolding sunny spots of greenery.",
+		},
 	}
 )
 
@@ -130,11 +144,11 @@ func TestTruncate(t *testing.T) {
 	}
 
 	// write a different set of lines
-	if err := writeLines(file2, testLines[1]); err != nil {
+	if err := writeLines(file2, testLines[2]); err != nil {
 		t.Fatal(err)
 	}
 
-	assertFollowedLines(t, f, testLines[1])
+	assertFollowedLines(t, f, testLines[2])
 }
 
 func TestRenameCreate(t *testing.T) {
