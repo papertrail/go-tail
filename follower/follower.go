@@ -62,6 +62,7 @@ func New(filename string, config Config) (*Follower, error) {
 		filename: filename,
 		lines:    make(chan Line),
 		config:   config,
+		closeCh:  make(chan struct{}),
 	}
 
 	err := t.reopen()
