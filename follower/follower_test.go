@@ -95,7 +95,6 @@ func TestMain(m *testing.M) {
 	if rs == 0 {
 		// Followers may take 10 seconds to notice the removal.
 		time.Sleep(10 * time.Second)
-		fmt.Println(runtime.NumGoroutine())
 		if runtime.NumGoroutine() > 2 {
 			// Heuristic to detect leaked goroutines.
 			rs = 1
