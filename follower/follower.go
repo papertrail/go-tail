@@ -99,7 +99,7 @@ func (t *Follower) follow() error {
 
 	var (
 		eventChan = make(chan fsnotify.Event)
-		errChan   = make(chan error)
+		errChan   = make(chan error, 1)
 	)
 
 	t.watcher, err = fsnotify.NewWatcher()
@@ -290,9 +290,6 @@ func (t *Follower) sendLine(l []byte, d int) {
 }
 
 func (t *Follower) watchFileEvents(eventChan chan fsnotify.Event, errChan chan error) {
-	defer close(eventChan)
-	defer close(errChan)
-
 	for {
 		select {
 		case evt, ok := <-t.watcher.Events:
@@ -309,11 +306,16 @@ func (t *Follower) watchFileEvents(eventChan chan fsnotify.Event, errChan chan e
 				}
 
 			default:
-				eventChan <- evt
+				select {
+				case eventChan <- evt:
+				case err := <-t.watcher.Errors:
+					errChan <- err
+					return
+				}
 			}
 
 		// die on a file watching error
-		case err, _ := <-t.watcher.Errors:
+		case err := <-t.watcher.Errors:
 			errChan <- err
 			return
 		}
