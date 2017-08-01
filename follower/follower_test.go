@@ -2,6 +2,7 @@ package follower
 
 import (
 	"fmt"
+	"log"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,7 +18,6 @@ import (
 var (
 	tmpDir string
 
-	_         = fmt.Print
 	testLines = [][]string{
 		{
 			"’Twas brillig, and the slithy toves",
@@ -97,7 +97,9 @@ func TestMain(m *testing.M) {
 		time.Sleep(10 * time.Second)
 		if runtime.NumGoroutine() > 2 {
 			// Heuristic to detect leaked goroutines.
-			rs = 1
+			fmt.Println("--- FAIL: TestMain")
+			logger := log.New(os.Stdout, "\t", log.Lshortfile)
+			logger.Fatal("Possible goroutine leak")
 		}
 	}
 	os.Exit(rs)
