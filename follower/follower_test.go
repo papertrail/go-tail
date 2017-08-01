@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 			// Heuristic to detect leaked goroutines.
 			fmt.Println("--- FAIL: TestMain")
 			logger := log.New(os.Stdout, "\t", log.Lshortfile)
-			logger.Fatal("Possible goroutine leak")
+			logger.Fatal("possible goroutine leak")
 		}
 	}
 	os.Exit(rs)
