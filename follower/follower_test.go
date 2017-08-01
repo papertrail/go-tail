@@ -2,10 +2,12 @@ package follower
 
 import (
 	"fmt"
+	"log"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +18,6 @@ import (
 var (
 	tmpDir string
 
-	_         = fmt.Print
 	testLines = [][]string{
 		{
 			"’Twas brillig, and the slithy toves",
@@ -91,6 +92,16 @@ func TestMain(m *testing.M) {
 	tmpDir, _ = ioutil.TempDir("", "fllw")
 	rs := m.Run()
 	os.RemoveAll(tmpDir)
+	if rs == 0 {
+		// Followers may take 10 seconds to notice the removal.
+		time.Sleep(10 * time.Second)
+		if runtime.NumGoroutine() > 2 {
+			// Heuristic to detect leaked goroutines.
+			fmt.Println("--- FAIL: TestMain")
+			logger := log.New(os.Stdout, "\t", log.Lshortfile)
+			logger.Fatal("possible goroutine leak")
+		}
+	}
 	os.Exit(rs)
 }
 
