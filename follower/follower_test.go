@@ -2,9 +2,9 @@ package follower
 
 import (
 	"fmt"
-	"log"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -94,7 +94,7 @@ func TestMain(m *testing.M) {
 	os.RemoveAll(tmpDir)
 	if rs == 0 {
 		// Followers may take 10 seconds to notice the removal.
-		time.Sleep(10 * time.Second)
+		time.Sleep(11 * time.Second)
 		if runtime.NumGoroutine() > 2 {
 			// Heuristic to detect leaked goroutines.
 			fmt.Println("--- FAIL: TestMain")
