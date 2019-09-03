@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elastic/beats/libbeat/common/file"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -264,7 +265,7 @@ func (t *Follower) reopen() error {
 		t.file = nil
 	}
 
-	file, err := os.Open(t.filename)
+	file, err := file.ReadOpen(t.filename)
 	if err != nil {
 		return err
 	}
@@ -286,7 +287,13 @@ func (t *Follower) close(err error) {
 }
 
 func (t *Follower) sendLine(l []byte, d int) {
-	t.lines <- Line{l[:len(l)-1], d}
+	// on Windows line usually ends with \r\n, so set offset to \r\n when it exists
+	offset := 1
+	if len(l) >= 2 && l[len(l)-2] == '\r' {
+		offset = 2
+	}
+
+	t.lines <- Line{l[:len(l)-offset], d}
 }
 
 func (t *Follower) watchFileEvents(eventChan chan fsnotify.Event, errChan chan error) {
