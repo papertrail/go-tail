@@ -114,47 +114,60 @@ func (t *Follower) follow() error {
 
 	for {
 		for {
-			// discard leading NUL bytes
-			var discarded int
+			select {
 
-			for {
-				b, _ := t.reader.Peek(peekSize)
-				i := bytes.LastIndexByte(b, '\x00')
-
-				if i > 0 {
-					n, _ := t.reader.Discard(i + 1)
-					discarded += n
-				}
-
-				if i+1 < peekSize {
-					break
-				}
-			}
-
-			s, err := t.reader.ReadBytes('\n')
-			if err != nil && err != io.EOF {
+			// any errors that come from fsnotify
+			case err := <-errChan:
 				return err
-			}
 
-			// if we encounter EOF before a line delimiter,
-			// ReadBytes() will return the remaining bytes,
-			// so push them back onto the buffer, rewind
-			// our seek position, and wait for further file changes.
-			// we also have to save our dangling byte count in the event
-			// that we want to re-open the file and seek to the end
-			if err == io.EOF {
-				l := len(s)
+			// a request to stop
+			case <-t.closeCh:
+				t.watcher.Remove(t.filename)
+				return nil
 
-				t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
-				if err != nil {
+			default:
+				// discard leading NUL bytes
+				var discarded int
+
+				for {
+					b, _ := t.reader.Peek(peekSize)
+					i := bytes.LastIndexByte(b, '\x00')
+
+					if i > 0 {
+						n, _ := t.reader.Discard(i + 1)
+						discarded += n
+					}
+
+					if i+1 < peekSize {
+						break
+					}
+				}
+
+				s, err := t.reader.ReadBytes('\n')
+				if err != nil && err != io.EOF {
 					return err
 				}
 
-				t.reader.Reset(t.file)
-				break
-			}
+				// if we encounter EOF before a line delimiter,
+				// ReadBytes() will return the remaining bytes,
+				// so push them back onto the buffer, rewind
+				// our seek position, and wait for further file changes.
+				// we also have to save our dangling byte count in the event
+				// that we want to re-open the file and seek to the end
+				if err == io.EOF {
+					l := len(s)
 
-			t.sendLine(s, discarded)
+					t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
+					if err != nil {
+						return err
+					}
+
+					t.reader.Reset(t.file)
+					break
+				}
+
+				t.sendLine(s, discarded)
+			}
 		}
 
 		// we're now at EOF, so wait for changes
