@@ -156,13 +156,16 @@ func (t *Follower) follow() error {
 				// that we want to re-open the file and seek to the end
 				if err == io.EOF {
 					l := len(s)
+					if l == 0 {
+						<-time.NewTimer(time.Millisecond * 100).C
+					} else {
+						t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
+						if err != nil {
+							return err
+						}
 
-					t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
-					if err != nil {
-						return err
+						t.reader.Reset(t.file)
 					}
-
-					t.reader.Reset(t.file)
 					break
 				}
 
