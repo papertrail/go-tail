@@ -158,14 +158,13 @@ func (t *Follower) follow() error {
 					l := len(s)
 					if l == 0 {
 						<-time.NewTimer(time.Millisecond * 100).C
-					} else {
-						t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
-						if err != nil {
-							return err
-						}
-
-						t.reader.Reset(t.file)
+					} 
+					t.offset, err = t.file.Seek(-int64(l), io.SeekCurrent)
+					if err != nil {
+						return err
 					}
+
+					t.reader.Reset(t.file)
 					break
 				}
 
