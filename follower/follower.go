@@ -187,7 +187,7 @@ func (t *Follower) follow() error {
 					if !os.IsNotExist(err) {
 						return err
 					}
-
+					<-time.NewTimer(time.Second * 10).C
 					// it's possible that an unlink can cause fsnotify.Chmod,
 					// so attempt to rewatch if the file is missing
 					if err := t.rewatch(); err != nil {
