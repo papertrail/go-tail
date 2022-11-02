@@ -2,9 +2,9 @@ package follower
 
 import (
 	"fmt"
-	"log"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"runtime"

@@ -44,7 +44,6 @@ func main() {
 			Offset: 0,
 			Reopen: reopen,
 		})
-
 		if err != nil {
 			panic(err)
 		}

@@ -3,7 +3,6 @@ package follower
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -15,10 +14,6 @@ import (
 const (
 	bufSize  = 4 * 1024
 	peekSize = 1024
-)
-
-var (
-	_ = fmt.Print
 )
 
 type Line struct {
@@ -244,8 +239,6 @@ func (t *Follower) follow() error {
 			continue
 		}
 	}
-
-	return nil
 }
 
 func (t *Follower) rewatch() error {
